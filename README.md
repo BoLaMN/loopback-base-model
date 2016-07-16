@@ -13,9 +13,9 @@ name: "YourModel"
 base: "BaseModel"
 
 defaultMethods: [ 'find', 'create' ] // only enable find and create endpoint
-defaultMethods: [ 'all' ] // enable all default endpoints
-defaultMethods: [ 'none' ] // dont expose any endpoints
-defaultMethods: [ 'extended' ] // enable all default endpoints + findOrCreate endpoint
+defaultMethods: 'all' // enable all default endpoints
+defaultMethods: 'none' // dont expose any endpoints
+defaultMethods: 'extended' // enable all default endpoints + findOrCreate endpoint
 ```
 
 License: MIT
