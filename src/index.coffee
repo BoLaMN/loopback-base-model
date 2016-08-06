@@ -1,5 +1,4 @@
 mixin = require './mixin'
-async = require 'async'
 
 module.exports = (app) ->
   registry = app.registry
@@ -12,8 +11,6 @@ module.exports = (app) ->
   throwNotAttached = (modelName, methodName) ->
     throw new Error('Cannot call ' + modelName + '.' + methodName + '().' + ' The ' + methodName + ' method has not been setup.' + ' The BaseModel has not been correctly attached to a DataSource!')
     return
-
-  tasks = []
 
   staticMethods = [
     'count'
@@ -31,14 +28,6 @@ module.exports = (app) ->
     'updateOrCreate'
   ]
 
-  tasks.push (cb) ->
-    async.each staticMethods, (method, done) ->
-      BaseModel[method] = ->
-        throwNotAttached @modelName, method
-        return
-      done()
-    , cb
-
   instanceMethods = [
     'isNewRecord'
     'destroy'
@@ -51,31 +40,28 @@ module.exports = (app) ->
     'reload'
   ]
 
-  tasks.push (cb) ->
-    async.each instanceMethods, (method, done) ->
-      BaseModel::[method] = ->
+  addMethods = (methods, basePropert) ->
+    methods.forEach (method) ->
+      baseProperty[method] = ->
         throwNotAttached @modelName, method
         return
-      done()
-    , cb
-
-  BaseModel.patchOrCreate = BaseModel.updateOrCreate
-  BaseModel.upsert = BaseModel.updateOrCreate
-
-  BaseModel.update = BaseModel.updateAll
-
-  BaseModel.removeById = BaseModel.destroyById
-  BaseModel.deleteById = BaseModel.destroyById
-
-  BaseModel.remove = BaseModel.destroyAll
-  BaseModel.deleteAll = BaseModel.destroyAll
-
-  BaseModel.convertNullToEmpty = (ctx, cb) ->
-    if ctx.result is null
-      ctx.result = {}
-
-    cb()
+      return
     return
+
+  addMethods staticMethods, BaseModel
+  addMethods instanceMethods, BaseModel.prototype
+
+  aliasMethods =
+    destroyAll: [ 'remove', 'deleteAll' ]
+    destroyById: [ 'removeById', 'deleteById' ]
+    updateAll: [ 'update' ]
+    updateOrCreate: [ 'patchOrCreate', 'upsert' ]
+
+  Object.keys(aliasMethods).forEach (alias) ->
+    methods = aliasMethods[alias]
+
+    methods.forEach (method) ->
+      BaseModel[method] = BaseModel[alias]
 
   BaseModel.setup = ->
     Model.setup.call this
@@ -96,8 +82,7 @@ module.exports = (app) ->
 
   BaseModel::save = (options = {}, callback = ->) ->
     if typeof options is 'function'
-      callback = options
-      options = {}
+      return @save {}, options
 
     Model = @constructor
 
@@ -135,19 +120,13 @@ module.exports = (app) ->
     @constructor.getIdName()
 
   BaseModel::getId = ->
-    data = @toObject()
-
-    if !data
-      return
-
-    data[@getIdName()]
+    @[@getIdName()]
 
   BaseModel::setId = (val) ->
     @[@getIdName()] = val
     return
 
-  async.parallel tasks, (err) ->
-    BaseModel.setup()
+  BaseModel.setup()
 
   BaseModel
 
